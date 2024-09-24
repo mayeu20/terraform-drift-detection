@@ -13,8 +13,8 @@ This repository contains a fully automated pipeline for detecting and reporting 
 
 ## Repository Structure
 terraform-drift-detection/
-│
-├── Modules/
+|
+|── Modules/
 │   ├── Python-SendEmail/
 │   │   └── send_email.py        # Python script to send email notifications
 │   └── Drift-TG-Modules/
