@@ -12,9 +12,9 @@ This repository contains a fully automated pipeline for detecting and reporting 
   - **Email** for direct stakeholder notification.
 
 ## Repository Structure
-terraform-drift-detection/
-|
-|── Modules/
+azure-terraform-drift-detection/
+│
+├── Modules/
 │   ├── Python-SendEmail/
 │   │   └── send_email.py        # Python script to send email notifications
 │   └── Drift-TG-Modules/
@@ -24,6 +24,7 @@ terraform-drift-detection/
 │   ├── azure-pipeline.yml       # Azure DevOps Pipeline YAML
 │
 ├── README.md                    # Documentation for the repository
+└── LICENSE                      # License file (optional, depending on your choice)
 
 ## Getting Started
 
@@ -45,14 +46,14 @@ terraform-drift-detection/
 	Use the Pipelines/azure-pipeline.yml file to create a new pipeline in Azure DevOps.
 3. **Configure Environment Variables**:
 	Add the following environment variables in your pipeline:
-	•	AZURE_OPENAI_API_KEY
-	•	AZURE_OPENAI_API_BASE
-	•	APP_FOLDER
-	•	DRIFT_REPORT_FILE
-	•	FILTERED_DRIFT_REPORT_FILE
-	•	SMTP_USERNAME
-	•	SMTP_PASSWORD
-	•	TEAMS_WEBHOOK_URL
+	- AZURE_OPENAI_API_KEY
+	- AZURE_OPENAI_API_BASE
+ 	- APP_FOLDER
+  	- DRIFT_REPORT_FILE
+   	- FILTERED_DRIFT_REPORT_FILE
+   	- SMTP_USERNAME
+   	- SMTP_PASSWORD
+   	- TEAMS_WEBHOOK_URL
 
 ### Usage
 
