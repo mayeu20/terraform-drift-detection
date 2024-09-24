@@ -41,3 +41,20 @@ terraform-drift-detection/
    ```bash
    git clone https://github.com/mayeu20/terraform-drift-detection.git
    cd terraform-drift-detection
+2. **Set up the Azure Pipeline**:
+	Use the Pipelines/azure-pipeline.yml file to create a new pipeline in Azure DevOps.
+3. **Configure Environment Variables**:
+	Add the following environment variables in your pipeline:
+	•	AZURE_OPENAI_API_KEY
+	•	AZURE_OPENAI_API_BASE
+	•	APP_FOLDER
+	•	DRIFT_REPORT_FILE
+	•	FILTERED_DRIFT_REPORT_FILE
+	•	SMTP_USERNAME
+	•	SMTP_PASSWORD
+	•	TEAMS_WEBHOOK_URL
+
+### Usage
+
+1. **Run the Pipeline**:
+Trigger the Azure DevOps pipeline to automatically detect drift, analyze it using Azure OpenAI, and send the notifications.
