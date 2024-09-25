@@ -1,6 +1,6 @@
 # This is an Azure Devops pipeline templates to be used for application stack drift detection in Azure.
 # Values in the variables section under the  Application-specific details as variables will need to be udpates.
-# Values on ligne 23 and 24 will need to be udpated to match the application named for the drift detection.
+# Values on ligne 25 and 26 will need to be udpated to match the application named for the drift detection.
 # Values are set as examples only.
 
 trigger: none

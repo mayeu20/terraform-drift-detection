@@ -14,7 +14,6 @@ This repository contains a fully automated pipeline for detecting and reporting 
 ## Repository Structure
 
 azure-terraform-drift-detection/
-│
 ├── Modules/
 │   └── send_email.py        # Python script to send email notifications
 │   └── drift_analyse_azureopenai.py   # Python script to process drift using Azure OpenAI
@@ -22,8 +21,6 @@ azure-terraform-drift-detection/
 │── azure-pipeline.yml       # Azure DevOps Pipeline YAML
 │
 ├── README.md                    # Documentation for the repository
-└── LICENSE                      # License file (optional, depending on your choice)
-
 
 ## Getting Started
 
@@ -44,7 +41,7 @@ azure-terraform-drift-detection/
 2. **Set up the Azure Pipeline**:
 	Use the Pipelines/azure-pipeline.yml file to create a new pipeline in Azure DevOps.
 3. **Configure Environment Variables**:
-	Add the following environment variables in your pipeline:
+	Add the following environment variables in your Azure DevOps Library group:
 	- AZURE_OPENAI_API_KEY
 	- AZURE_OPENAI_API_BASE
  	- APP_FOLDER
@@ -53,8 +50,12 @@ azure-terraform-drift-detection/
    	- SMTP_USERNAME
    	- SMTP_PASSWORD
    	- TEAMS_WEBHOOK_URL
-
+4. **Update the yaml file**:
+	Update the values in the variables section under the Application-specific details as variables will need to be udpates.
+	Update the Job and Display names on line 25 and 26.
+	
 ### Usage
 
 1. **Run the Pipeline**:
+Update the
 Trigger the Azure DevOps pipeline to automatically detect drift, analyze it using Azure OpenAI, and send the notifications.
