@@ -80,6 +80,7 @@ jobs:
   - script: |
       python -m pip install --upgrade pip
       pip install openai
+      pip install requests
     displayName: 'Install Python Dependencies'
   # Process Drift Report with Azure OpenAI LLM
   - task: PythonScript@0
@@ -95,126 +96,34 @@ jobs:
       FILTERED_DRIFT_REPORT_FILE: $(filteredDriftReportFile)
 
   # Send Filtered Drift Report to Azure Monitor
-  - task: PowerShell@2
+  - task: PythonScript@0
     displayName: 'Send Filtered Drift Report to Azure Monitor'
-    condition: eq(variables.DriftDetected, 'true') # Only send the log if drift is detected
+    condition: eq(variables.DriftDetected, 'true')
     inputs:
-      targetType: 'inline'
-      script: |
-        $workspaceId = "$(LAWorkspaceID)"
-        $workspaceKey = "$(LAWorkspaceKey)"
-        $logType = "DriftDetectionLogs"
-        $timeStampField = ""
-
-        # Read the filtered drift report
-        $filteredDriftReportPath = "$(appFolder)/$(filteredDriftReportFile)"
-        $filteredDriftReportContent = Get-Content -Path $filteredDriftReportPath -Raw
-
-        # Prepare the log entry
-        $logEntry = @{
-            DriftReport = $filteredDriftReportContent
-            PipelineName = "$(Build.DefinitionName)"
-            BuildId = "$(Build.BuildId)"
-            TimeGenerated = (Get-Date).ToUniversalTime().ToString("o")
-        }
-
-        # Convert to JSON
-        $json = ConvertTo-Json @($logEntry)
-        $contentLength = $json.Length
-
-        # Build the signature
-        $method = "POST"
-        $contentType = "application/json"
-        $resource = "/api/logs"
-        $rfc1123date = [DateTime]::UtcNow.ToString("r")  # Using "r" for RFC1123 format
-
-        # Construct the string to sign with 'x-ms-date:' prefix
-        $xHeaders = "x-ms-date:" + $rfc1123date
-        $stringToHash = "$method`n$contentLength`n$contentType`n$xHeaders`n$resource"
-
-        # Encode the string to sign
-        $bytesToHash = [Text.Encoding]::UTF8.GetBytes($stringToHash)
-
-        # Decode the Workspace Key from base64
-        $keyBytes = [Convert]::FromBase64String($workspaceKey)
-
-        # Compute the HMAC-SHA256 hash
-        $hmacsha256 = New-Object System.Security.Cryptography.HMACSHA256
-        $hmacsha256.Key = $keyBytes
-        $hash = $hmacsha256.ComputeHash($bytesToHash)
-
-        # Base64-encode the hash to create the signature
-        $signature = [Convert]::ToBase64String($hash)
-
-        # Create the authorization header
-        $authorization = "SharedKey ${workspaceId}:${signature}"
-
-        # Build the request
-        $uri = "https://${workspaceId}.ods.opinsights.azure.com/api/logs?api-version=2016-04-01"
-        $headers = @{
-            "Content-Type" = $contentType
-            "Authorization" = $authorization
-            "Log-Type" = $logType
-            "x-ms-date" = $rfc1123date
-            "time-generated-field" = $timeStampField
-        }
-
-        # Send the request
-        try {
-            Invoke-RestMethod -Method $method -Uri $uri -Headers $headers -Body $json
-            Write-Host "Data sent to Azure Monitor successfully."
-        }
-        catch {
-            Write-Error "Failed to send data to Azure Monitor: $_"
-            throw $_  # Re-throw the exception to fail the task
-        }
-
+      scriptPath: './Modules/drift_sent_to_loganalytics.py'
     env:
-      LAWorkspaceID: $(LAWorkspaceID)
-      LAWorkspaceKey: $(LAWorkspaceKey)
+      LAWorkspaceID: '$(LAWorkspaceID)'
+      LAWorkspaceKey: '$(LAWorkspaceKey)'
+      appFolder: '$(appFolder)'
+      filteredDriftReportFile: '$(filteredDriftReportFile)'
+      Build_DefinitionName: '$(Build.DefinitionName)'
+      Build_BuildId: '$(Build.BuildId)'
 
   - publish: $(appFolder)/$(filteredDriftReportFile)
     artifact: drift-report
     displayName: 'Publish Filtered Drift Report'
 
   # Send Drift Report to Microsoft Teams
-  - task: PowerShell@2
+  - task: PythonScript@0
     displayName: 'Send Drift Report to Microsoft Teams'
-    condition: eq(variables.DriftDetected, 'true')  # Send message only if drift is detected
+    condition: eq(variables.DriftDetected, 'true')
     inputs:
-      targetType: 'inline'
-      script: |
-        $uri = "URL_To_yourTeamsChannelWebHook" #Update with your WebHook Teams Channel URL
-        $driftReportFilePath = "$(appFolder)/$(filteredDriftReportFile)"
-        $driftReportContent = Get-Content -Path $driftReportFilePath -Raw
-
-        # Construct the message payload
-        $payload = @{
-            title = "Terraform Drift Detected"
-            text = "Drift has been detected in the Application Stack Deployment. Please review the attached details."
-            sections = @(
-                @{
-                    activityTitle = "Drift Report"
-                    activitySubtitle = "${Build.DefinitionName} - Build ${Build.BuildId}"
-                    text = "``${driftReportContent}``"
-                }
-            )
-        }
-
-        # Convert the payload to JSON
-        $payloadJson = $payload | ConvertTo-Json -Depth 3
-
-        # Send the message to Microsoft Teams using the webhook
-        try {
-            Invoke-RestMethod -Uri $uri -Method Post -ContentType 'application/json' -Body $payloadJson
-            Write-Host "Message sent to Microsoft Teams successfully."
-        }
-        catch {
-            Write-Error "Failed to send message to Microsoft Teams: $_"
-        }
+      scriptPath: './Modules/drift_send_to_msteams.py'
     env:
-      APP_FOLDER: $(appFolder)
-      FILTERED_DRIFT_REPORT_FILE: $(filteredDriftReportFile)
+      Build_DefinitionName: '$(Build.DefinitionName)'
+      Build_BuildId: '$(Build.BuildId)'
+      appFolder: $(appFolder)
+      filteredDriftReportFile: $(filteredDriftReportFile)
  
 
   # Send Drift Report via Email

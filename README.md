@@ -17,6 +17,7 @@ terraform-drift-detection/
 - Modules
 	- send_email.py        			# Python script to send email notifications
 	- drift_analyse_azureopenai.py  # Python script to process drift using Azure OpenAI
+	- drift_send_to_msteams.py		# Python script to send to MS teams channel via WebHook
 - azure-pipeline.yml       			# Azure DevOps Pipeline YAML
 - README.md                    		# Documentation for the repository
 
