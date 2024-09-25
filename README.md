@@ -13,14 +13,12 @@ This repository contains a fully automated pipeline for detecting and reporting 
 
 ## Repository Structure
 
-azure-terraform-drift-detection/
-├── Modules/
-│   └── send_email.py        # Python script to send email notifications
-│   └── drift_analyse_azureopenai.py   # Python script to process drift using Azure OpenAI
-│
-│── azure-pipeline.yml       # Azure DevOps Pipeline YAML
-│
-├── README.md                    # Documentation for the repository
+terraform-drift-detection/
+- Modules
+	- send_email.py        			# Python script to send email notifications
+	- drift_analyse_azureopenai.py  # Python script to process drift using Azure OpenAI
+- azure-pipeline.yml       			# Azure DevOps Pipeline YAML
+- README.md                    		# Documentation for the repository
 
 ## Getting Started
 
@@ -53,7 +51,7 @@ azure-terraform-drift-detection/
 4. **Update the yaml file**:
 	Update the values in the variables section under the Application-specific details as variables will need to be udpates.
 	Update the Job and Display names on line 25 and 26.
-	
+
 ### Usage
 
 1. **Run the Pipeline**:
