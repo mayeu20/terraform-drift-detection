@@ -13,9 +13,9 @@ smtp_username = os.getenv("SMTP_USERNMAE")  # Retrieve from environment variable
 smtp_password = os.getenv("SMTP_PASSWORD")  # Retrieve from environment variables
 
 # Email details
-sender_email = "sender email"
-receiver_email = "receiver email address"
-subject = "Terraform Drift Report for Application XXXX"
+sender_email = "sender email" #To Be Updated
+receiver_email = "receiver email address" #To Be Updated
+subject = "Terraform Drift Report for Application XXXX"  #To Be Updated
 drift_report_file = os.path.join(os.getenv("APP_FOLDER"), os.getenv("FILTERED_DRIFT_REPORT_FILE"))
 
 # Read the drift report content

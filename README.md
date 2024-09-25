@@ -55,5 +55,4 @@ terraform-drift-detection/
 ### Usage
 
 1. **Run the Pipeline**:
-Update the
 Trigger the Azure DevOps pipeline to automatically detect drift, analyze it using Azure OpenAI, and send the notifications.
