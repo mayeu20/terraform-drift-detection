@@ -12,19 +12,18 @@ This repository contains a fully automated pipeline for detecting and reporting 
   - **Email** for direct stakeholder notification.
 
 ## Repository Structure
+
 azure-terraform-drift-detection/
 │
 ├── Modules/
-│   ├── Python-SendEmail/
-│   │   └── send_email.py        # Python script to send email notifications
-│   └── Drift-TG-Modules/
-│       └── drift_detection.py   # Python script to process drift using Azure OpenAI
+│   └── send_email.py        # Python script to send email notifications
+│   └── drift_analyse_azureopenai.py   # Python script to process drift using Azure OpenAI
 │
-├── Pipelines/
-│   ├── azure-pipeline.yml       # Azure DevOps Pipeline YAML
+│── azure-pipeline.yml       # Azure DevOps Pipeline YAML
 │
 ├── README.md                    # Documentation for the repository
 └── LICENSE                      # License file (optional, depending on your choice)
+
 
 ## Getting Started
 

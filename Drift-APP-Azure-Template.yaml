@@ -1,0 +1,231 @@
+# This is an Azure Devops pipeline templates to be used for application stack drift detection in Azure.
+# Values in the variables section under the  Application-specific details as variables will need to be udpates.
+# Values on ligne 23 and 24 will need to be udpated to match the application named for the drift detection.
+# Values are set as examples only.
+
+trigger: none
+
+pool:
+  name: xxxxxx # Define your self hosted agent pool or use Azure hosted agent config below
+  vmImage: 'ubuntu-latest'  # or windows-latest if preferred
+
+variables:
+  group: TF_SPVARS_DRIFT # Azure DevOps Library variables group that you created
+
+  # Application-specific details as variables
+  appFolder: './04_Apps/XYZ' #Path to the Application stack folder containing your terraform code
+  backendConfig: './XYZ.tfbackend' #Path to your tfbackend file in the appFolder
+  varFile: './XYZ.tfvars' #Path to your tfvars file in the appFolder
+  planOutputFile: 'XYZ.plan' #Name of the terraform output file
+  driftReportFile: 'XYZ.txt' #Name of the Drift Report
+  filteredDriftReportFile: 'XYZ_filtered.txt' #Name of the Filtered Drift report
+  failOnDrift: true
+  
+jobs:
+- job: Drift_XYZ #to be updated for each Application stack pipeline
+  displayName: "Drift Check XYZ" #to be updated for each Application stack pipeline
+  timeoutInMinutes: 600
+  steps:
+  - task: TerraformInstaller@0
+    displayName: "Install Terraform latest"
+    inputs:
+      terraformVersion: 'latest'
+
+  - script: |
+      cd $(appFolder)
+      terraform init -input=false -backend-config="$(backendConfig)" -upgrade
+    displayName: 'Run Init'
+    env:
+      ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+      ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+      ARM_TENANT_ID: $(ARM_TENANT_ID)
+      ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+
+  - script: |
+      cd $(appFolder)
+      terraform init -input=false -backend-config="$(backendConfig)" -upgrade
+      terraform plan -var-file="$(varFile)" -refresh-only -no-color -out=$(planOutputFile) || exit 0
+    displayName: 'Run Plan'
+    env:
+      ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+      ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+      ARM_TENANT_ID: $(ARM_TENANT_ID)
+      ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+
+  - script: |
+      cd $(appFolder)
+      terraform show -no-color $(planOutputFile) > $(driftReportFile)
+    displayName: 'Generate Drift Report'
+
+  - script: |
+      cd $(appFolder)
+      if grep -q "No changes. Infrastructure is up-to-date." $(driftReportFile); then
+        echo "##[section]No drift detected."
+        echo "##vso[task.setvariable variable=DriftDetected]false"
+      else
+        echo "##vso[task.logissue type=warning]Drift detected in infrastructure."
+        echo "##[section]Drift Details:"
+        cat $(driftReportFile)
+        echo "##vso[task.setvariable variable=DriftDetected]true"
+      fi
+    displayName: 'Check for Drift'
+
+  # Step to install Python and the necessary packages
+  - task: UsePythonVersion@0
+    displayName: 'Use Python 3.x'
+    inputs:
+      versionSpec: '3.x'
+      addToPath: true
+
+  - script: |
+      python -m pip install --upgrade pip
+      pip install openai
+    displayName: 'Install Python Dependencies'
+  # Process Drift Report with Azure OpenAI LLM
+  - task: PythonScript@0
+    displayName: 'Process Drift Report with Azure OpenAI LLM'
+    condition: eq(variables.DriftDetected, 'true') # Only analyse if drift is detected
+    inputs:
+      scriptPath: './Modules/drift_analyse_azureopenai.py'
+    env:
+      AZURE_OPENAI_API_KEY: $(OPENAI_API_KEY)
+      AZURE_OPENAI_API_BASE: $(AZURE_OPENAI_ENDPOINT)
+      APP_FOLDER: $(appFolder)
+      DRIFT_REPORT_FILE: $(driftReportFile)
+      FILTERED_DRIFT_REPORT_FILE: $(filteredDriftReportFile)
+
+  # Send Filtered Drift Report to Azure Monitor
+  - task: PowerShell@2
+    displayName: 'Send Filtered Drift Report to Azure Monitor'
+    condition: eq(variables.DriftDetected, 'true') # Only send the log if drift is detected
+    inputs:
+      targetType: 'inline'
+      script: |
+        $workspaceId = "$(LAWorkspaceID)"
+        $workspaceKey = "$(LAWorkspaceKey)"
+        $logType = "DriftDetectionLogs"
+        $timeStampField = ""
+
+        # Read the filtered drift report
+        $filteredDriftReportPath = "$(appFolder)/$(filteredDriftReportFile)"
+        $filteredDriftReportContent = Get-Content -Path $filteredDriftReportPath -Raw
+
+        # Prepare the log entry
+        $logEntry = @{
+            DriftReport = $filteredDriftReportContent
+            PipelineName = "$(Build.DefinitionName)"
+            BuildId = "$(Build.BuildId)"
+            TimeGenerated = (Get-Date).ToUniversalTime().ToString("o")
+        }
+
+        # Convert to JSON
+        $json = ConvertTo-Json @($logEntry)
+        $contentLength = $json.Length
+
+        # Build the signature
+        $method = "POST"
+        $contentType = "application/json"
+        $resource = "/api/logs"
+        $rfc1123date = [DateTime]::UtcNow.ToString("r")  # Using "r" for RFC1123 format
+
+        # Construct the string to sign with 'x-ms-date:' prefix
+        $xHeaders = "x-ms-date:" + $rfc1123date
+        $stringToHash = "$method`n$contentLength`n$contentType`n$xHeaders`n$resource"
+
+        # Encode the string to sign
+        $bytesToHash = [Text.Encoding]::UTF8.GetBytes($stringToHash)
+
+        # Decode the Workspace Key from base64
+        $keyBytes = [Convert]::FromBase64String($workspaceKey)
+
+        # Compute the HMAC-SHA256 hash
+        $hmacsha256 = New-Object System.Security.Cryptography.HMACSHA256
+        $hmacsha256.Key = $keyBytes
+        $hash = $hmacsha256.ComputeHash($bytesToHash)
+
+        # Base64-encode the hash to create the signature
+        $signature = [Convert]::ToBase64String($hash)
+
+        # Create the authorization header
+        $authorization = "SharedKey ${workspaceId}:${signature}"
+
+        # Build the request
+        $uri = "https://${workspaceId}.ods.opinsights.azure.com/api/logs?api-version=2016-04-01"
+        $headers = @{
+            "Content-Type" = $contentType
+            "Authorization" = $authorization
+            "Log-Type" = $logType
+            "x-ms-date" = $rfc1123date
+            "time-generated-field" = $timeStampField
+        }
+
+        # Send the request
+        try {
+            Invoke-RestMethod -Method $method -Uri $uri -Headers $headers -Body $json
+            Write-Host "Data sent to Azure Monitor successfully."
+        }
+        catch {
+            Write-Error "Failed to send data to Azure Monitor: $_"
+            throw $_  # Re-throw the exception to fail the task
+        }
+
+    env:
+      LAWorkspaceID: $(LAWorkspaceID)
+      LAWorkspaceKey: $(LAWorkspaceKey)
+
+  - publish: $(appFolder)/$(filteredDriftReportFile)
+    artifact: drift-report
+    displayName: 'Publish Filtered Drift Report'
+
+  # Send Drift Report to Microsoft Teams
+  - task: PowerShell@2
+    displayName: 'Send Drift Report to Microsoft Teams'
+    condition: eq(variables.DriftDetected, 'true')  # Send message only if drift is detected
+    inputs:
+      targetType: 'inline'
+      script: |
+        $uri = "URL_To_yourTeamsChannelWebHook" #Update with your WebHook Teams Channel URL
+        $driftReportFilePath = "$(appFolder)/$(filteredDriftReportFile)"
+        $driftReportContent = Get-Content -Path $driftReportFilePath -Raw
+
+        # Construct the message payload
+        $payload = @{
+            title = "Terraform Drift Detected"
+            text = "Drift has been detected in the Application Stack Deployment. Please review the attached details."
+            sections = @(
+                @{
+                    activityTitle = "Drift Report"
+                    activitySubtitle = "${Build.DefinitionName} - Build ${Build.BuildId}"
+                    text = "``${driftReportContent}``"
+                }
+            )
+        }
+
+        # Convert the payload to JSON
+        $payloadJson = $payload | ConvertTo-Json -Depth 3
+
+        # Send the message to Microsoft Teams using the webhook
+        try {
+            Invoke-RestMethod -Uri $uri -Method Post -ContentType 'application/json' -Body $payloadJson
+            Write-Host "Message sent to Microsoft Teams successfully."
+        }
+        catch {
+            Write-Error "Failed to send message to Microsoft Teams: $_"
+        }
+    env:
+      APP_FOLDER: $(appFolder)
+      FILTERED_DRIFT_REPORT_FILE: $(filteredDriftReportFile)
+ 
+
+  # Send Drift Report via Email
+  - task: PythonScript@0
+    displayName: 'Send Drift Report via Email'
+    condition: eq(variables.DriftDetected, 'true')  # Only send the email if drift is detected
+    inputs:
+      scriptPath: './Modules/drift_send_email.py'
+    env:
+      APP_FOLDER: $(appFolder)
+      FILTERED_DRIFT_REPORT_FILE: $(filteredDriftReportFile)
+      SMTP_PASSWORD: $(SMTP_PASSWORD)
+
+  
